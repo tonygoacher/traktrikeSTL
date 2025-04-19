@@ -11,7 +11,7 @@
 #define LED_PIN   7  //Pin for the pixel strand. Can be analog or digital.
 //#define LED_TOTAL 232
 //#define LED_TOTAL 120  // Strip
-#define LED_TOTAL 88  // Fairy lights 
+#define LED_TOTAL 29  // Fairy lights 
 //#define LED_TOTAL 61 // RGB cricle
 //61///50 //strip is 120  //Change this to the number of LEDs in your strand.
 #define LED_HALF  LED_TOTAL/2
@@ -58,6 +58,8 @@ uint8_t * splitRGB(uint32_t);
 //  need to be accessed by several functions in one pass, so they need to be global.
 
 Adafruit_NeoPixel strand = Adafruit_NeoPixel(LED_TOTAL, LED_PIN, NEO_GRB + NEO_KHZ800);  //LED strand objetcs
+
+//Adafruit_NeoPixel strand2 = Adafruit_NeoPixel(144, LED_PIN, NEO_GRB + NEO_KHZ800); 
 
 uint16_t gradient = 0; //Used to iterate and loop through each color palette gradually
 
@@ -155,6 +157,7 @@ void setup() {    //Like it's named, this gets ran before any other function.
 
   strand.begin(); //Initialize the LED strand object.
   strand.show();  //Show a blank strand, just to get the LED's ready for use.
+
 }
 
 
@@ -186,7 +189,8 @@ void loop() {  //This is where the magic happens. This loop produces each frame 
 
   CycleVisual();   //Changes visualization for shuffle mode or button press.
 
-  //ToggleShuffle(); //Toggles shuffle mode. Delete this if you didn't use buttons.
+  //T//oggleShuffle(); //Toggles shuffle mode. Delete this if you didn't use buttons.
+
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 
   //This is where "gradient" is modulated to prevent overflow.
@@ -232,7 +236,6 @@ void Visualize() {
   static int last = -1;
   if(last != visual)
   {
-    Serial.println(visual);
     last = visual;
   }
  
@@ -246,6 +249,7 @@ void Visualize() {
 }
 
 #define NUM_FR_PALETTE 5
+#define NUM_COLORS_PER_PALETTE 6
 const uint32_t fastBlockRed[] =   {0xff0000, 0x800000, 0x600000, 0x400000, 0x200000, 0x100000};
 const uint32_t fastBlockGreen[] = {0x00ff00, 0x008000, 0x006000, 0x004000, 0x002000, 0x001000};
 const uint32_t fastBlockBlue[] =  {0x0000ff, 0x000080, 0x000060, 0x000040, 0x000020, 0x000010};
@@ -285,7 +289,7 @@ void FastRiser()
     // Insert leds into buffer
     strand.setPixelColor(0, fbLookUp[frPalette][state]);
     state++;
-    if(state == 6)
+    if(state == NUM_COLORS_PER_PALETTE)
     {
       state = -1;
     }
@@ -630,7 +634,6 @@ void Snake() {
 
   uint32_t col = ColorPalette(-1); //Get the color at current "gradient."
 
-
   //The dot should only be moved if there's sound happening.
   //  Otherwise if noise starts and it's been moving, it'll appear to teleport.
   if (volume > 0) {
@@ -898,7 +901,16 @@ void CycleVisual() {
     }
 
     //Like before, this delay is to prevent a button press from affecting "maxVol."
-    delay(350);
+    delay(50);
+    if(!digitalRead(BUTTON_2))
+    {
+      while(!digitalRead(BUTTON_2))
+      {
+        
+      }
+      delay(100);
+    }
+    
 
     maxVol = avgVol; //Set max volume to average for a fresh experience
   }
