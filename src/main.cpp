@@ -3,6 +3,8 @@
 //Libraries
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>  //Library to simplify interacting with the LED strand
+#include "LiquidCrystal_I2C.h"
+
 #ifdef __AVR__
 #include <avr/power.h>   //Includes the library for power reduction registers if your chip supports them. 
 #endif                   //More info: http://www.nongnu.org/avr-libc/user-manual/group__avr__power.htlm
@@ -24,6 +26,14 @@
 //#define BUTTON_3  4   //Button 3 toggles shuffle mode (automated changing of color and visual)
 
 #define FADE_CUTOFF 4
+
+
+#define		LCD_WIDTH	16
+#define		LCD_HEIGHT	2
+#define		LCD_ADDRESS		0x27
+
+LiquidCrystal_I2C lcdDisplay(LCD_ADDRESS, LCD_WIDTH, LCD_HEIGHT);
+
 
 #define _countof(x) (sizeof(x) / sizeof (x[0]))
 
@@ -73,6 +83,7 @@ uint16_t thresholds[] = {1529, 1019, 764, 764, 764, 1274};
 
 uint8_t palette = 0;  //Holds the current color palette.
 uint8_t visual = 0;   //Holds the current visual being displayed.
+uint8_t lastVisual = -1;
 uint8_t volume = 0;   //Holds the volume level read from the sound detector.
 uint8_t last = 0;     //Holds the value of volume from the previous loop() pass.
 
@@ -145,9 +156,36 @@ void rainbowCycle() {
   }
 }
 
+
+
+//////////<Visual Functions>
+void(*opsArray [])(void) = {AmberFlasher, FastFiller, FastRiser, Pulse, PalettePulse, Traffic, Snake, PaletteDance, Glitter, Paintball};
+
+void showVisualName()
+{
+  static const char names[][17]={
+    {"Amber Flasher   "},
+    {"Fast Filler"},
+    {"Fast Riser"},
+    {"Pulse"},
+    {"Palette Pulse"},
+    {"Traffic"},
+    {"Snake"},
+    {"Palette Dance"},
+    {"Glitter"},
+    {"Paintball"}
+  };
+
+  lcdDisplay.setCursor(0,0);
+  lcdDisplay.print("                ");
+  lcdDisplay.setCursor(0,0);
+  lcdDisplay.print(names[visual]);
+}
+
 void setup() {    //Like it's named, this gets ran before any other function.
 
   Serial.begin(9600); //Sets data rate for serial data transmission.
+
 
   //Defines the buttons pins to be input.
   pinMode(BUTTON_1, INPUT); pinMode(BUTTON_2, INPUT); //pinMode(BUTTON_3, INPUT);
@@ -155,9 +193,14 @@ void setup() {    //Like it's named, this gets ran before any other function.
   //Write a "HIGH" value to the button pins.
   digitalWrite(BUTTON_1, HIGH); digitalWrite(BUTTON_2, HIGH); //digitalWrite(BUTTON_3, HIGH);
 
+
+
+  lcdDisplay.init();
+  lcdDisplay.setBacklight(255);
+
   strand.begin(); //Initialize the LED strand object.
   strand.show();  //Show a blank strand, just to get the LED's ready for use.
-
+  showVisualName();
 }
 
 
@@ -227,8 +270,7 @@ void loop() {  //This is where the magic happens. This loop produces each frame 
 //////////</Standard Functions>
 
 
-//////////<Visual Functions>
-void(*opsArray [])(void) = {AmberFlasher, FastFiller, FastRiser, Pulse, PalettePulse, Traffic, Snake, PaletteDance, Glitter, Paintball};
+
 #define VISUALS _countof(opsArray)
 //This function calls the appropriate visualization based on the value of "visual"
 void Visualize() {
@@ -890,6 +932,12 @@ void CycleVisual() {
     //Resets "visual" if there are no more visuals to cycle through.
     if (visual > VISUALS) visual = 0;
     //This is why you should change "VISUALS" if you add a visual, or the program loop over it.
+
+    if(visual != lastVisual)
+    {
+      showVisualName();
+      lastVisual = visual;
+    }
 
     //Resets the positions of all dots to nonexistent (-2) if you cycle to the Traffic() visual.
     if (visual == 1) memset(pos, -2, sizeof(pos));
