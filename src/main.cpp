@@ -8,7 +8,7 @@
 #endif                   //More info: http://www.nongnu.org/avr-libc/user-manual/group__avr__power.htlm
 
 //Constants (change these as necessary)
-#define LED_PIN   A5  //Pin for the pixel strand. Can be analog or digital.
+#define LED_PIN   7  //Pin for the pixel strand. Can be analog or digital.
 //#define LED_TOTAL 232
 //#define LED_TOTAL 120  // Strip
 #define LED_TOTAL 88  // Fairy lights 
@@ -19,8 +19,8 @@
 
 #define AUDIO_PIN A0  //Pin for the envelope of the sound detector
 #define KNOB_PIN  A1  //Pin for the trimpot 10K
-#define BUTTON_1  6   //Button 1 cycles color palettes
-#define BUTTON_2  4   //Button 2 cycles visualization modes
+#define BUTTON_1  2   //Button 1 cycles color palettes
+#define BUTTON_2  3   //Button 2 cycles visualization modes
 //#define BUTTON_3  4   //Button 3 toggles shuffle mode (automated changing of color and visual)
 
 #define FADE_CUTOFF 4
@@ -45,6 +45,7 @@ void FastFiller();
 void Traffic();
 void Glitter();
 void PaletteDance();
+void AmberFlasher();
 uint32_t Ocean(unsigned int i);
 uint32_t PinaColada(unsigned int i);
 uint32_t Sulfur(unsigned int i);
@@ -223,7 +224,7 @@ void loop() {  //This is where the magic happens. This loop produces each frame 
 
 
 //////////<Visual Functions>
-void(*opsArray [])(void) = {FastFiller, FastRiser, Pulse, PalettePulse, Traffic, Snake, PaletteDance, Glitter, Paintball};
+void(*opsArray [])(void) = {AmberFlasher, FastFiller, FastRiser, Pulse, PalettePulse, Traffic, Snake, PaletteDance, Glitter, Paintball};
 #define VISUALS _countof(opsArray)
 //This function calls the appropriate visualization based on the value of "visual"
 void Visualize() {
@@ -332,6 +333,7 @@ void FastFiller()
   if( bump && volume > knob)
   {
     strand.fill(random(0x202020, 0xffffff));
+
     state = 0;
   }
 
@@ -345,7 +347,7 @@ void FastFiller()
       state = -1;
     }
 
-    for(int i = 0 ; i < strand.numPixels() ; i++)
+    for(int i = 0 ; i < (int)strand.numPixels() ; i++)
     {
       uint32_t currentCol = strand.getPixelColor(i);
       uint8_t* pixRGB = splitRGB(currentCol);
@@ -363,6 +365,69 @@ void FastFiller()
     strand.setPixelColor(i,strand.getPixelColor(i-1));
   }
   strand.show();
+ }
+
+ void AmberFlasher()
+ {
+    static uint8_t flashCounter = 0;
+    enum FlasherState
+    {
+      FIRST_FLASH,
+      ONDELAY,
+      OFFDELAY,
+      LONG_WAIT,
+
+    };
+    static uint32_t nextTime;
+    static FlasherState state = FIRST_FLASH;
+    static const uint8_t maxFlashes = 2;
+    static const int flashRate = 50;
+    static const int offPeriod = 600;
+
+    switch(state)
+    {
+      case FIRST_FLASH:
+      {
+        nextTime = millis() + flashRate;
+        strand.fill(0xff00a0);
+        state = ONDELAY;     
+      }
+      break;
+
+      case ONDELAY:
+      case OFFDELAY:
+      {
+        if(millis() > nextTime)
+        {
+            state = FIRST_FLASH;
+            nextTime = millis() + flashRate;
+            strand.fill(0);
+            if(state == ONDELAY)
+            {
+              state = OFFDELAY;
+              break;
+            }
+            flashCounter++;
+            if(flashCounter > maxFlashes)
+            {
+              flashCounter = 0;
+              state = LONG_WAIT;
+              nextTime = millis() + offPeriod;
+            }
+        }
+      }
+      break;
+
+      case LONG_WAIT:
+      {
+        if(millis() > nextTime)
+        {
+          state = FIRST_FLASH;
+          flashCounter = 0;
+        }
+      }
+    }
+    strand.show();
  }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -564,7 +629,7 @@ void Snake() {
   fade(0.975); //Leave a trail behind the dot.
 
   uint32_t col = ColorPalette(-1); //Get the color at current "gradient."
-  Serial.println(float(split(col, 0)) * pow(volume / maxVol, 1.5) * knob);
+
 
   //The dot should only be moved if there's sound happening.
   //  Otherwise if noise starts and it's been moving, it'll appear to teleport.
@@ -790,7 +855,7 @@ void CyclePalette() {
     //The button is close to the microphone on my setup, so the sound of pushing it is
     //  relatively loud to the sound detector. This causes the visual to think a loud noise
     //  happened, so the delay simply allows the sound of the button to pass unabated.
-    delay(350);
+    delay(50);
 
     maxVol = avgVol;  //Set max volume to average for a fresh experience.
   }
