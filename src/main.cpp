@@ -824,7 +824,7 @@ void Glitter() {
 void Paintball() {
 
   //If it's been twice the average time for a "bump" since the last "bump," start fading.
-  if ((millis() / 1000.0) - timeBump > avgTime * 2.0) fade(0.99);
+  if ((millis() / 1000.0) - timeBump > avgTime * 2.0) fade(0.6);
 
   //Bleeds colors together. Operates similarly to fade. For more info, see its definition below
   bleed(dotPos);
@@ -930,13 +930,14 @@ void CycleVisual() {
     gradient = 0; //Prevent overflow
 
     //Resets "visual" if there are no more visuals to cycle through.
-    if (visual > VISUALS) visual = 0;
+    if (visual >= VISUALS) visual = 0;
     //This is why you should change "VISUALS" if you add a visual, or the program loop over it.
 
     if(visual != lastVisual)
     {
       showVisualName();
       lastVisual = visual;
+      strand.clear();
     }
 
     //Resets the positions of all dots to nonexistent (-2) if you cycle to the Traffic() visual.
