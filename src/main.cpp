@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>  //Library to simplify interacting with the LED strand
 #include "LiquidCrystal_I2C.h"
+#include "VULCD.h"
 
 #ifdef __AVR__
 #include <avr/power.h>   //Includes the library for power reduction registers if your chip supports them. 
@@ -33,6 +34,7 @@
 #define		LCD_ADDRESS		0x27
 
 LiquidCrystal_I2C lcdDisplay(LCD_ADDRESS, LCD_WIDTH, LCD_HEIGHT);
+VULCD* vuMeter;
 
 
 #define _countof(x) (sizeof(x) / sizeof (x[0]))
@@ -159,18 +161,18 @@ void rainbowCycle() {
 
 
 //////////<Visual Functions>
-void(*opsArray [])(void) = {AmberFlasher, FastFiller, FastRiser, Pulse, PalettePulse, Traffic, Snake, PaletteDance, Glitter, Paintball};
+void(*opsArray [])(void) = {Snake,AmberFlasher, FastFiller, FastRiser, Pulse, PalettePulse, Traffic,  PaletteDance, Glitter, Paintball};
 
 void showVisualName()
 {
   static const char names[][17]={
-    {"Amber Flasher   "},
+    {"Snake"},
+    {"Amber Flasher"},
     {"Fast Filler"},
     {"Fast Riser"},
     {"Pulse"},
     {"Palette Pulse"},
     {"Traffic"},
-    {"Snake"},
     {"Palette Dance"},
     {"Glitter"},
     {"Paintball"}
@@ -198,76 +200,101 @@ void setup() {    //Like it's named, this gets ran before any other function.
   lcdDisplay.init();
   lcdDisplay.setBacklight(255);
 
+  vuMeter = new VULCD(&lcdDisplay);
+
   strand.begin(); //Initialize the LED strand object.
   strand.show();  //Show a blank strand, just to get the LED's ready for use.
+
+  lcdDisplay.clear();
+  lcdDisplay.setCursor(0,0);
+  lcdDisplay.print("   TrakTrike");
+  lcdDisplay.setCursor(0,1);
+  lcdDisplay.print(" Sound To Light");
+  _delay_ms(2000);
   showVisualName();
 }
 
 
-void loop() {  //This is where the magic happens. This loop produces each frame of the visual.
+
+unsigned long lastTime = 0;
+
+void loop()
+{  //This is where the magic happens. This loop produces each frame of the visual.
 
   volume = analogRead(AUDIO_PIN);       //Record the volume level from the sound detector
   knob = analogRead(KNOB_PIN);
 
-  if(knob < FADE_CUTOFF-(FADE_CUTOFF/2))
+  if(millis() > lastTime)
   {
-    // If disabled, do the colour fade
-    rainbowCycle();
-  }
 
-   knob = knob / 1023.0; //Record how far the trimpot is twisted
-  //Sets a threshold for volume.
-  //  In practice I've found noise can get up to 15, so if it's lower, the visual thinks it's silent.
-  //  Also if the volume is less than average volume / 2 (essentially an average with 0), it's considered silent.
-  if (volume < avgVol / 2.0 || volume < 15) volume = 0;
+    lastTime = millis() + 30;
 
-  else avgVol = (avgVol + volume) / 2.0; //If non-zeo, take an "average" of volumes.
 
-  //If the current volume is larger than the loudest value recorded, overwrite
-  if (volume > maxVol) maxVol = volume;
+    if(knob < FADE_CUTOFF-(FADE_CUTOFF/2))
+    {
+      // If disabled, do the colour fade
+      rainbowCycle();
+    }
 
-  //Check the Cycle* functions for specific instructions if you didn't include buttons in your design.
-  ////////////////////////////////////////////////////////////////////////////////////////////////////
-  CyclePalette();  //Changes palette for shuffle mode or button press.
+    knob = knob / 1023.0; //Record how far the trimpot is twisted
+    //Sets a threshold for volume.
+    //  In practice I've found noise can get up to 15, so if it's lower, the visual thinks it's silent.
+    //  Also if the volume is less than average volume / 2 (essentially an average with 0), it's considered silent.
+    if (volume < avgVol / 2.0 || volume < 15) volume = 0;
 
-  CycleVisual();   //Changes visualization for shuffle mode or button press.
+    else avgVol = (avgVol + volume) / 2.0; //If non-zeo, take an "average" of volumes.
 
-  //T//oggleShuffle(); //Toggles shuffle mode. Delete this if you didn't use buttons.
+    //If the current volume is larger than the loudest value recorded, overwrite
+    if (volume > maxVol) maxVol = volume;
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Check the Cycle* functions for specific instructions if you didn't include buttons in your design.
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    CyclePalette();  //Changes palette for shuffle mode or button press.
 
-  //This is where "gradient" is modulated to prevent overflow.
-  if (gradient > thresholds[palette]) {
-    gradient %= thresholds[palette] + 1;
+    CycleVisual();   //Changes visualization for shuffle mode or button press.
 
-    //Everytime a palette gets completed is a good time to readjust "maxVol," just in case
-    //  the song gets quieter; we also don't want to lose brightness intensity permanently
-    //  because of one stray loud sound.
-    maxVol = (maxVol + volume) / 2.0;
-  }
+    //T//oggleShuffle(); //Toggles shuffle mode. Delete this if you didn't use buttons.
 
-  //If there is a decent change in volume since the last pass, average it into "avgBump"
-  if (volume - last > 10) avgBump = (avgBump + (volume - last)) / 2.0;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  //If there is a notable change in volume, trigger a "bump"
-  //  avgbump is lowered just a little for comparing to make the visual slightly more sensitive to a beat.
-  bump = (volume - last > avgBump * .9);  
+    //This is where "gradient" is modulated to prevent overflow.
+    if (gradient > thresholds[palette]) {
+      gradient %= thresholds[palette] + 1;
 
-  //If a "bump" is triggered, average the time between bumps
-  if (bump) {
-    avgTime = (((millis() / 1000.0) - timeBump) + avgTime) / 2.0;
-    timeBump = millis() / 1000.0;
-  }
+      //Everytime a palette gets completed is a good time to readjust "maxVol," just in case
+      //  the song gets quieter; we also don't want to lose brightness intensity permanently
+      //  because of one stray loud sound.
+      maxVol = (maxVol + volume) / 2.0;
+    }
 
-  Visualize();   //Calls the appropriate visualization to be displayed with the globals as they are.
+    //If there is a decent change in volume since the last pass, average it into "avgBump"
+    if (volume - last > 10) avgBump = (avgBump + (volume - last)) / 2.0;
 
-  gradient++;    //Increments gradient
+    //If there is a notable change in volume, trigger a "bump"
+    //  avgbump is lowered just a little for comparing to make the visual slightly more sensitive to a beat.
+    bump = (volume - last > avgBump * .9);  
 
-  last = volume; //Records current volume for next pass
+    //If a "bump" is triggered, average the time between bumps
+    if (bump) {
+      avgTime = (((millis() / 1000.0) - timeBump) + avgTime) / 2.0;
+      timeBump = millis() / 1000.0;
+    }
 
-  delay(30);     //Paces visuals so they aren't too fast to be enjoyable
+    Visualize();   //Calls the appropriate visualization to be displayed with the globals as they are.
+
+    gradient++;    //Increments gradient
+
+    last = volume; //Records current volume for next pass
+  }    
+  unsigned long v = (volume / 2) + (bump ? 4095 : 0) ;
+  v = v * knob;
+  v = v / 4096;
+  vuMeter->ShowBar(1, v);
+
 }
 //////////</Standard Functions>
+
+
 
 
 
@@ -290,15 +317,16 @@ void Visualize() {
   opsArray[visual]();
 }
 
-#define NUM_FR_PALETTE 5
+#define NUM_FR_PALETTE 6
 #define NUM_COLORS_PER_PALETTE 6
 const uint32_t fastBlockRed[] =   {0xff0000, 0x800000, 0x600000, 0x400000, 0x200000, 0x100000};
 const uint32_t fastBlockGreen[] = {0x00ff00, 0x008000, 0x006000, 0x004000, 0x002000, 0x001000};
 const uint32_t fastBlockBlue[] =  {0x0000ff, 0x000080, 0x000060, 0x000040, 0x000020, 0x000010};
 const uint32_t fastBlockWhite[] = {0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff, 0xffffff};
 const uint32_t fastBlockMix[] = {0xff0000, 0x00ff00, 0xff00ff, 0x00ffff, 0x0ffff0, 0xfff0f0};
+const uint32_t fastBlockFire[] = {0xff0080, 0xe00060, 0x800020, 0x600010, 0x400000, 0x200000};
 
-const uint32_t* fbLookUp[NUM_FR_PALETTE] = {fastBlockRed, fastBlockGreen, fastBlockBlue, fastBlockWhite, fastBlockMix};
+const uint32_t* fbLookUp[NUM_FR_PALETTE] = {fastBlockRed, fastBlockGreen, fastBlockBlue, fastBlockWhite, fastBlockMix, fastBlockFire};
 
 void FastRiser()
 { 
