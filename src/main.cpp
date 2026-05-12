@@ -14,7 +14,7 @@
 #define LED_PIN   7  //Pin for the pixel strand. Can be analog or digital.
 //#define LED_TOTAL 232
 //#define LED_TOTAL 120  // Strip
-#define LED_TOTAL 29  // Fairy lights 
+#define LED_TOTAL 50  // Fairy lights 
 //#define LED_TOTAL 61 // RGB cricle
 //61///50 //strip is 120  //Change this to the number of LEDs in your strand.
 #define LED_HALF  LED_TOTAL/2
@@ -84,7 +84,7 @@ uint16_t gradient = 0; //Used to iterate and loop through each color palette gra
 uint16_t thresholds[] = {1529, 1019, 764, 764, 764, 1274};
 
 uint8_t palette = 0;  //Holds the current color palette.
-uint8_t visual = 0;   //Holds the current visual being displayed.
+uint8_t visual = 6;   //Holds the current visual being displayed.
 uint8_t lastVisual = -1;
 uint8_t volume = 0;   //Holds the volume level read from the sound detector.
 uint8_t last = 0;     //Holds the value of volume from the previous loop() pass.
